@@ -1,147 +1,101 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
+import { useState, useEffect } from 'react';
 
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+export default function Home() {
+  const [wallet, setWallet] = useState(null);
+  const [points, setPoints] = useState(0);
+  const [subscribed, setSubscribed] = useState(false);
+  const [ranking, setRanking] = useState([]);
+  const [tip, setTip] = useState('');
 
-mongoose.connect('mongodb+srv://<username>:<password>@cluster0.mongodb.net/predistrict?retryWrites=true&w=majority', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-// --- Schemas ---
-
-const userSchema = new mongoose.Schema({
-  walletAddress: { type: String, unique: true, required: true },
-  points: { type: Number, default: 0 },
-  packages: [
-    {
-      type: String, // 'emergency', 'weekly_15', 'weekly_25'
-      validUntil: Date,
+  useEffect(() => {
+    if (wallet) {
+      checkSubscription(wallet);
+      fetchRanking();
+      fetchPoints(wallet);
     }
-  ],
-  createdAt: { type: Date, default: Date.now },
-});
+  }, [wallet]);
 
-const tipSchema = new mongoose.Schema({
-  walletAddress: String,
-  date: Date,
-  tip: String,
-  correct: Boolean,
-  pointsChange: Number,
-});
-
-const User = mongoose.model('User', userSchema);
-const Tip = mongoose.model('Tip', tipSchema);
-
-// --- Helpers ---
-
-function getPackageDuration(packageType) {
-  const now = new Date();
-  if (packageType === 'emergency') {
-    now.setMonth(now.getMonth() + 1);
-  } else if (packageType === 'weekly_15' || packageType === 'weekly_25') {
-    now.setDate(now.getDate() + 7);
+  async function connectWallet() {
+    if (!window.ethereum) {
+      alert('MetaMask is required to connect wallet');
+      return;
+    }
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    setWallet(accounts[0]);
   }
-  return now;
-}
 
-function calculatePointsChange(isCorrect) {
-  return isCorrect ? 50 : -20;
-}
-
-// --- API ---
-
-// Register or update user
-app.post('/api/register', async (req, res) => {
-  const { walletAddress } = req.body;
-  if (!walletAddress) return res.status(400).json({ error: 'Wallet address required' });
-
-  let user = await User.findOne({ walletAddress });
-  if (!user) {
-    user = new User({ walletAddress });
-    await user.save();
+  async function checkSubscription(addr) {
+    const res = await fetch('/api/check-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress: addr }),
+    });
+    const data = await res.json();
+    setSubscribed(data.subscribed);
   }
-  res.json({ message: 'User registered', user });
-});
 
-// Check subscription status
-app.post('/api/check-subscription', async (req, res) => {
-  const { walletAddress } = req.body;
-  if (!walletAddress) return res.status(400).json({ error: 'Wallet address required' });
+  async function fetchRanking() {
+    const res = await fetch('/api/ranking');
+    const data = await res.json();
+    setRanking(data.ranking || []);
+  }
 
-  const user = await User.findOne({ walletAddress });
-  if (!user) return res.json({ subscribed: false });
+  async function fetchPoints(addr) {
+    const res = await fetch(`/api/user-points?walletAddress=${addr}`);
+    const data = await res.json();
+    setPoints(data.points || 0);
+  }
 
-  const now = new Date();
-  const hasValidPackage = user.packages.some(pkg => pkg.validUntil > now);
-  res.json({ subscribed: hasValidPackage });
-});
+  async function submitTip() {
+    if (!tip) {
+      alert('Please enter your tip');
+      return;
+    }
+    const res = await fetch('/api/submit-tip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress: wallet, tip }),
+    });
+    const data = await res.json();
+    alert(data.message);
+    setPoints(data.points);
+    fetchRanking();
+    setTip('');
+  }
 
-// Buy package (mock payment)
-app.post('/api/buy-package', async (req, res) => {
-  const { walletAddress, packageType } = req.body;
-  if (!walletAddress || !packageType) return res.status(400).json({ error: 'Missing walletAddress or packageType' });
+  return (
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1>Predistrict</h1>
+      {!wallet ? (
+        <button onClick={connectWallet}>Connect Wallet</button>
+      ) : (
+        <>
+          <p><b>Wallet:</b> {wallet}</p>
+          <p><b>Points:</b> {points}</p>
+          <p><b>Subscription status:</b> {subscribed ? 'Active' : 'Inactive'}</p>
 
-  const user = await User.findOne({ walletAddress });
-  if (!user) return res.status(404).json({ error: 'User not found' });
+          <h3>Today's Question: Will it rain today in Budapest?</h3>
 
-  const validUntil = getPackageDuration(packageType);
-  user.packages.push({ type: packageType, validUntil });
-  await user.save();
+          <input
+            type="text"
+            placeholder="Your tip (yes/no)"
+            value={tip}
+            onChange={e => setTip(e.target.value)}
+          />
+          <button onClick={submitTip} disabled={!subscribed}>Submit Tip</button>
 
-  res.json({ message: 'Package purchased', validUntil });
-});
+          {!subscribed && <p style={{ color: 'red' }}>You must have an active subscription to submit tips.</p>}
 
-// Submit tip
-app.post('/api/submit-tip', async (req, res) => {
-  const { walletAddress, tip } = req.body;
-  if (!walletAddress || !tip) return res.status(400).json({ error: 'Missing walletAddress or tip' });
-
-  const user = await User.findOne({ walletAddress });
-  if (!user) return res.status(404).json({ error: 'User not found' });
-
-  // Simulate tip correctness (replace with real logic)
-  const correct = Math.random() > 0.5;
-  const pointsChange = calculatePointsChange(correct);
-
-  user.points = Math.max(0, user.points + pointsChange);
-  await user.save();
-
-  const newTip = new Tip({
-    walletAddress,
-    date: new Date(),
-    tip,
-    correct,
-    pointsChange,
-  });
-  await newTip.save();
-
-  res.json({ message: correct ? 'Correct tip! +50 points' : 'Wrong tip! -20 points', points: user.points });
-});
-
-// Get ranking (top 25, min 10 players)
-app.get('/api/ranking', async (req, res) => {
-  const count = await User.countDocuments();
-  if (count < 10) return res.json({ message: 'Not enough players for ranking', ranking: [] });
-
-  const users = await User.find().sort({ points: -1 }).limit(25);
-  const ranking = users.map(u => ({ walletAddress: u.walletAddress, points: u.points }));
-  res.json({ ranking });
-});
-
-// Get user points (optional)
-app.get('/api/user-points', async (req, res) => {
-  const { walletAddress } = req.query;
-  if (!walletAddress) return res.status(400).json({ error: 'walletAddress required' });
-
-  const user = await User.findOne({ walletAddress });
-  if (!user) return res.json({ points: 0 });
-  res.json({ points: user.points });
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Predistrict backend running on port ${PORT}`));
+          <h3>Ranking (Top 25)</h3>
+          <ol>
+            {ranking.map(user => (
+              <li key={user.walletAddress}>
+                {user.walletAddress.substring(0, 6)}... - {user.points} points
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </div>
+  );
+}
