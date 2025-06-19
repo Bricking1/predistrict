@@ -1,140 +1,144 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Predistrict - Demo</title>
+  <title>Predistrict - Knowledge-based Prediction</title>
   <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      font-family: 'Segoe UI', sans-serif;
       margin: 0;
       padding: 0;
+      background: #f2f4f8;
+      color: #333;
       text-align: center;
     }
     header {
-      background: #1e1e2f;
-      color: white;
+      background: #ffffff;
       padding: 1rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    header img {
+      height: 60px;
+    }
+    h1 {
+      margin-top: 1rem;
     }
     .container {
-      max-width: 600px;
+      max-width: 500px;
       margin: 2rem auto;
       background: white;
       padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .hidden {
+      display: none;
     }
     button {
-      padding: 0.5rem 1rem;
-      background: #0057ff;
+      background-color: #0057ff;
       color: white;
+      padding: 0.75rem 1.5rem;
       border: none;
-      border-radius: 5px;
-      margin-top: 1rem;
+      border-radius: 6px;
+      font-size: 1rem;
       cursor: pointer;
+      margin-top: 1rem;
     }
     button:hover {
-      background: #003fc5;
+      background-color: #0040c8;
     }
-    .leaderboard {
-      margin-top: 2rem;
-      text-align: left;
-    }
-    .leaderboard h3 {
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 0.5rem;
-    }
-    .leaderboard ol {
-      padding-left: 1.5rem;
-    }
-    .points-box, .subscription-box {
+    select {
+      padding: 0.5rem;
       margin-top: 1rem;
-      padding: 1rem;
-      background: #e8f0fe;
-      border-radius: 8px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      width: 100%;
+    }
+    .success {
+      color: green;
+      font-weight: bold;
+      margin-top: 1rem;
     }
   </style>
 </head>
 <body>
+
   <header>
-    <h1>Predistrict</h1>
-    <p>Közösségi tudásalapú tippek és jutalmak</p>
-    <button onclick="connectWallet()">🔗 Wallet csatlakoztatása</button>
-    <p id="walletAddress">Nem csatlakoztatott</p>
+    <img src="logo.png" alt="Predistrict Logo">
   </header>
-  <div class="container">
-    <div class="subscription-box">
-      <strong>Státusz:</strong> Előfizető ✅<br>
-      <small>Napi pont: 100</small>
-    </div>
 
-    <div class="points-box">
-      <strong>Pontjaid:</strong> <span id="points">100</span>
-      <br>
-      <button onclick="dailyReward()">Napi pont feltöltés</button>
-    </div>
+  <div class="container" id="subscription">
+    <h1>Activate Your Subscription</h1>
+    <p>Select your plan and start playing weekly prediction games.</p>
 
-    <div class="question-box">
-      <h3>Mai kérdés:</h3>
-      <p>Lesz-e ma eső Budapesten?</p>
-      <button onclick="submitTip(true)">Igen</button>
-      <button onclick="submitTip(false)">Nem</button>
-    </div>
+    <select id="planSelect">
+      <option value="5">Starter Plan - $5 / week</option>
+      <option value="10">Pro Plan - $10 / week</option>
+    </select>
 
-    <div class="leaderboard">
-      <h3>Top 5 játékos</h3>
-      <ol>
-        <li>Alice - 240 pont</li>
-        <li>Bob - 210 pont</li>
-        <li>Te - <span id="rank-points">100</span> pont</li>
-        <li>David - 80 pont</li>
-        <li>Eva - 60 pont</li>
-      </ol>
+    <button onclick="subscribe()">Subscribe with MetaMask</button>
+    <p id="walletStatus">No wallet connected</p>
+  </div>
+
+  <div class="container hidden" id="dashboard">
+    <h1>Welcome to Predistrict!</h1>
+    <p class="success">Subscription Active ✅</p>
+    <p><strong>Your Points:</strong> <span id="points">100</span></p>
+    <button onclick="dailyReward()">Claim Daily Reward</button>
+
+    <div class="question-box" style="margin-top: 2rem;">
+      <h3>Today's Question:</h3>
+      <p>Will it rain today in Budapest?</p>
+      <button onclick="submitTip(true)">Yes</button>
+      <button onclick="submitTip(false)">No</button>
     </div>
   </div>
 
   <script>
-    let points = 100;
+    let subscribed = false;
 
-    function connectWallet() {
-      if (window.ethereum) {
-        window.web3 = new Web3(window.ethereum);
-        window.ethereum.request({ method: 'eth_requestAccounts' })
-          .then(accounts => {
-            document.getElementById("walletAddress").textContent = "Wallet: " + accounts[0];
-          })
-          .catch(err => {
-            alert("Wallet kapcsolat sikertelen: " + err.message);
-          });
-      } else {
-        alert("MetaMask nem található. Telepítsd a MetaMask bővítményt.");
+    async function subscribe() {
+      if (typeof window.ethereum === 'undefined') {
+        alert('Please install MetaMask.');
+        return;
       }
-    }
 
-    function submitTip(isYes) {
-      const correct = Math.random() > 0.5;
-      if (correct) {
-        points += 50;
-        alert("Helyes tipp! +50 pont");
-      } else {
-        points -= 20;
-        alert("Helytelen tipp! -20 pont");
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const web3 = new Web3(window.ethereum);
+
+      const plan = document.getElementById('planSelect').value;
+      const priceInEth = plan / 200; // ~$5 = 0.025 ETH approx.
+
+      const tx = {
+        from: accounts[0],
+        to: '0xYourPaymentWalletAddressHere',
+        value: web3.utils.toWei(priceInEth.toString(), 'ether')
+      };
+
+      try {
+        await web3.eth.sendTransaction(tx);
+        document.getElementById('subscription').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        subscribed = true;
+        document.getElementById('walletStatus').innerText = 'Wallet connected: ' + accounts[0];
+      } catch (err) {
+        alert('Transaction failed: ' + err.message);
       }
-      updatePoints();
     }
 
     function dailyReward() {
-      points += 100;
-      alert("+100 napi pont hozzáadva!");
-      updatePoints();
+      if (!subscribed) return;
+      let current = parseInt(document.getElementById('points').innerText);
+      document.getElementById('points').innerText = current + 50;
     }
 
-    function updatePoints() {
-      document.getElementById("points").textContent = points;
-      document.getElementById("rank-points").textContent = points;
+    function submitTip(answer) {
+      alert("Your tip was submitted: " + (answer ? "Yes" : "No"));
     }
   </script>
+
 </body>
 </html>
