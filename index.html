@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Predistrict - Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background: #1e1e2f;
+      color: white;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #0057ff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin-top: 1rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #003fc5;
+    }
+    .leaderboard {
+      margin-top: 2rem;
+      text-align: left;
+    }
+    .leaderboard h3 {
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 0.5rem;
+    }
+    .leaderboard ol {
+      padding-left: 1.5rem;
+    }
+    .points-box, .subscription-box {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #e8f0fe;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Predistrict</h1>
+    <p>Közösségi tudásalapú tippek és jutalmak</p>
+  </header>
+  <div class="container">
+    <div class="subscription-box">
+      <strong>Státusz:</strong> Előfizető ✅<br>
+      <small>Napi pont: 100</small>
+    </div>
+
+    <div class="points-box">
+      <strong>Pontjaid:</strong> <span id="points">100</span>
+      <br>
+      <button onclick="dailyReward()">Napi pont feltöltés</button>
+    </div>
+
+    <div class="question-box">
+      <h3>Mai kérdés:</h3>
+      <p>Lesz-e ma eső Budapesten?</p>
+      <button onclick="submitTip(true)">Igen</button>
+      <button onclick="submitTip(false)">Nem</button>
+    </div>
+
+    <div class="leaderboard">
+      <h3>Top 5 játékos</h3>
+      <ol>
+        <li>Alice - 240 pont</li>
+        <li>Bob - 210 pont</li>
+        <li>Te - <span id="rank-points">100</span> pont</li>
+        <li>David - 80 pont</li>
+        <li>Eva - 60 pont</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    let points = 100;
+
+    function submitTip(isYes) {
+      const correct = Math.random() > 0.5;
+      if (correct) {
+        points += 50;
+        alert("Helyes tipp! +50 pont");
+      } else {
+        points -= 20;
+        alert("Helytelen tipp! -20 pont");
+      }
+      updatePoints();
+    }
+
+    function dailyReward() {
+      points += 100;
+      alert("+100 napi pont hozzáadva!");
+      updatePoints();
+    }
+
+    function updatePoints() {
+      document.getElementById("points").textContent = points;
+      document.getElementById("rank-points").textContent = points;
+    }
+  </script>
+</body>
+</html>
