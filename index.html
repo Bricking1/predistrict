@@ -66,13 +66,14 @@ export default function Home() {
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Predistrict</h1>
+
       {!wallet ? (
         <button onClick={connectWallet}>Connect Wallet</button>
       ) : (
         <>
-          <p><b>Wallet:</b> {wallet}</p>
-          <p><b>Points:</b> {points}</p>
-          <p><b>Subscription status:</b> {subscribed ? 'Active' : 'Inactive'}</p>
+          <p><strong>Wallet:</strong> {wallet}</p>
+          <p><strong>Points:</strong> {points}</p>
+          <p><strong>Subscription status:</strong> {subscribed ? 'Active' : 'Inactive'}</p>
 
           <h3>Today's Question: Will it rain today in Budapest?</h3>
 
@@ -82,9 +83,15 @@ export default function Home() {
             value={tip}
             onChange={e => setTip(e.target.value)}
           />
-          <button onClick={submitTip} disabled={!subscribed}>Submit Tip</button>
+          <button onClick={submitTip} disabled={!subscribed}>
+            Submit Tip
+          </button>
 
-          {!subscribed && <p style={{ color: 'red' }}>You must have an active subscription to submit tips.</p>}
+          {!subscribed && (
+            <p style={{ color: 'red' }}>
+              You must have an active subscription to submit tips.
+            </p>
+          )}
 
           <h3>Ranking (Top 25)</h3>
           <ol>
