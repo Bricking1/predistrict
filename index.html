@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Predistrict - Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -60,6 +61,8 @@
   <header>
     <h1>Predistrict</h1>
     <p>Közösségi tudásalapú tippek és jutalmak</p>
+    <button onclick="connectWallet()">🔗 Wallet csatlakoztatása</button>
+    <p id="walletAddress">Nem csatlakoztatott</p>
   </header>
   <div class="container">
     <div class="subscription-box">
@@ -94,6 +97,21 @@
 
   <script>
     let points = 100;
+
+    function connectWallet() {
+      if (window.ethereum) {
+        window.web3 = new Web3(window.ethereum);
+        window.ethereum.request({ method: 'eth_requestAccounts' })
+          .then(accounts => {
+            document.getElementById("walletAddress").textContent = "Wallet: " + accounts[0];
+          })
+          .catch(err => {
+            alert("Wallet kapcsolat sikertelen: " + err.message);
+          });
+      } else {
+        alert("MetaMask nem található. Telepítsd a MetaMask bővítményt.");
+      }
+    }
 
     function submitTip(isYes) {
       const correct = Math.random() > 0.5;
