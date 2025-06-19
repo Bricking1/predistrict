@@ -12,159 +12,132 @@
       margin: 0;
       padding: 0;
       text-align: center;
-      color: #222;
     }
     header {
       background: #1e1e2f;
       color: white;
-      padding: 2rem 1rem 2rem 1rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
+      padding: 1rem;
     }
-    #logo {
-      max-width: 300px;
-      height: auto;
+    .container {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     button {
-      padding: 0.7rem 1.5rem;
+      padding: 0.5rem 1rem;
       background: #0057ff;
       color: white;
       border: none;
       border-radius: 5px;
       margin-top: 1rem;
       cursor: pointer;
-      font-size: 1rem;
-      transition: background-color 0.3s ease;
     }
     button:hover {
       background: #003fc5;
     }
-    .container {
-      max-width: 650px;
-      margin: 2rem auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.15);
-    }
-    .hidden {
-      display: none;
-    }
-    #paymentStatus {
+    .points-box, .subscription-box {
       margin-top: 1rem;
-      font-weight: bold;
+      padding: 1rem;
+      background: #e8f0fe;
+      border-radius: 8px;
     }
-    h1, h2, h3 {
-      margin: 0.5rem 0;
+    #logo {
+      max-width: 200px;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
 <body>
   <header>
-    <img src="logo.png" alt="Predistrict Logo" id="logo" />
+    <img id="logo" src="logo.png" alt="Predistrict Logo" />
     <h1>Predistrict</h1>
-    <p>Community knowledge-based tips and rewards</p>
-    <button id="connectWalletBtn">Connect Wallet</button>
-    <p id="walletAddress">Wallet not connected</p>
+    <p>Community-based knowledge tips and rewards</p>
+    <button id="connectBtn">Connect Wallet</button>
+    <p id="walletAddress">Not connected</p>
   </header>
+  <div class="container" id="mainContent" style="display:none;">
+    <div class="subscription-box">
+      <strong>Status:</strong> Subscriber ✅<br />
+      <small>Daily Points: <span id="dailyPoints">100</span></small>
+    </div>
 
-  <main class="container">
-    <section id="paymentSection">
-      <h2>Subscribe</h2>
-      <p>Choose your package and pay 0.01 ETH to unlock questions and points.</p>
-      <button id="payBtn">Pay 0.01 ETH</button>
-      <p id="paymentStatus"></p>
-    </section>
+    <div class="points-box">
+      <strong>Your Points:</strong> <span id="points">100</span><br />
+      <button id="dailyRewardBtn">Add Daily Points</button>
+    </div>
 
-    <section id="contentSection" class="hidden">
-      <div>
-        <h3>Your Points:</h3>
-        <p id="points">0</p>
-        <button id="dailyRewardBtn">Claim Daily Points (100 points)</button>
-      </div>
-
-      <div style="margin-top: 2rem;">
-        <h3>Today's Question:</h3>
-        <p id="questionText">Will it rain in Budapest today?</p>
-        <button onclick="submitTip(true)">Yes</button>
-        <button onclick="submitTip(false)">No</button>
-      </div>
-    </section>
-  </main>
+    <div class="question-box">
+      <h3>Today's Question:</h3>
+      <p>Will it rain today in Budapest?</p>
+      <button id="tipYes">Yes</button>
+      <button id="tipNo">No</button>
+    </div>
+  </div>
 
   <script>
-    let web3;
-    let userAddress;
-    let points = 0;
+    let points = 100;
+    let walletAddress = null;
 
-    const connectWalletBtn = document.getElementById('connectWalletBtn');
-    const walletAddressEl = document.getElementById('walletAddress');
-    const payBtn = document.getElementById('payBtn');
-    const paymentStatus = document.getElementById('paymentStatus');
-    const paymentSection = document.getElementById('paymentSection');
-    const contentSection = document.getElementById('contentSection');
-    const pointsEl = document.getElementById('points');
+    const connectBtn = document.getElementById('connectBtn');
+    const walletAddressP = document.getElementById('walletAddress');
+    const mainContent = document.getElementById('mainContent');
+    const dailyPointsSpan = document.getElementById('dailyPoints');
+    const pointsSpan = document.getElementById('points');
     const dailyRewardBtn = document.getElementById('dailyRewardBtn');
+    const tipYesBtn = document.getElementById('tipYes');
+    const tipNoBtn = document.getElementById('tipNo');
 
-    connectWalletBtn.onclick = async () => {
+    async function connectWallet() {
       if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
+        window.web3 = new Web3(window.ethereum);
         try {
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          userAddress = accounts[0];
-          walletAddressEl.textContent = 'Wallet: ' + userAddress;
-          connectWalletBtn.disabled = true;
+          walletAddress = accounts[0];
+          walletAddressP.textContent = `Wallet: ${walletAddress}`;
+          checkSubscription();
         } catch (err) {
           alert('Wallet connection failed: ' + err.message);
         }
       } else {
-        alert('MetaMask not detected. Please install MetaMask extension.');
+        alert('MetaMask not found. Please install MetaMask.');
       }
-    };
+    }
 
-    payBtn.onclick = async () => {
-      if (!web3 || !userAddress) {
-        alert('Please connect your wallet first.');
-        return;
-      }
-
-      paymentStatus.textContent = 'Waiting for payment...';
-
-      const paymentAmount = web3.utils.toWei('0.01', 'ether'); // 0.01 ETH
-
+    async function checkSubscription() {
       try {
-        await web3.eth.sendTransaction({
-          from: userAddress,
-          to: '0xE8caF548eaD535fc4Bcb0938C43319Fc1d0bac97',
-          value: paymentAmount,
-        });
-
-        // Call backend to verify payment
-        const response = await fetch('https://yourbackend.domain/api/verify-payment', {
+        const response = await fetch('http://localhost:3001/api/check-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userWallet: userAddress, minAmountEther: 0.01 }),
+          body: JSON.stringify({ walletAddress })
         });
         const data = await response.json();
-
-        if (data.success) {
-          paymentStatus.textContent = 'Payment successful! Access granted.';
-          paymentSection.classList.add('hidden');
-          contentSection.classList.remove('hidden');
-          points = 100;
-          updatePoints();
+        if (data.subscribed) {
+          mainContent.style.display = 'block';
         } else {
-          paymentStatus.textContent = 'Payment not verified. Please try again.';
+          alert('Subscription not found or expired. Please send 1 ETH to 0xE8caF548eaD535fc4Bcb0938C43319Fc1d0bac97 to subscribe.');
+          mainContent.style.display = 'none';
         }
       } catch (err) {
-        paymentStatus.textContent = 'Payment failed: ' + err.message;
+        alert('Error checking subscription: ' + err.message);
+        mainContent.style.display = 'none';
       }
-    };
+    }
+
+    function updatePoints() {
+      pointsSpan.textContent = points;
+      dailyPointsSpan.textContent = 100;
+    }
+
+    function dailyReward() {
+      points += 100;
+      alert('+100 daily points added!');
+      updatePoints();
+    }
 
     function submitTip(isYes) {
-      // Example tip logic with random correctness
       const correct = Math.random() > 0.5;
       if (correct) {
         points += 50;
@@ -176,15 +149,10 @@
       updatePoints();
     }
 
-    dailyRewardBtn.onclick = () => {
-      points += 100;
-      alert('+100 daily points added!');
-      updatePoints();
-    };
-
-    function updatePoints() {
-      pointsEl.textContent = points;
-    }
+    connectBtn.addEventListener('click', connectWallet);
+    dailyRewardBtn.addEventListener('click', dailyReward);
+    tipYesBtn.addEventListener('click', () => submitTip(true));
+    tipNoBtn.addEventListener('click', () => submitTip(false));
   </script>
 </body>
 </html>
