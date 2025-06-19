@@ -64,61 +64,59 @@ export default function Home() {
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: 'auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      {/* Logo helye */}
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <img
-          src="/logo.png" // ide tedd a logódat a public mappába
-          alt="Predistrict Logo"
-          style={{ width: '150px', height: 'auto' }}
-        />
+    <div style={{ maxWidth: 700, margin: '40px auto', padding: 20, fontFamily: 'Arial, sans-serif' }}>
+      {/* Logo */}
+      <div style={{ textAlign: 'center', marginBottom: 30 }}>
+        <img src="/logo.png" alt="Predistrict Logo" style={{ width: 120, marginBottom: 10 }} />
+        <h1>Predistrict</h1>
       </div>
-
-      <h1 style={{ textAlign: 'center' }}>Predistrict</h1>
 
       {!wallet ? (
         <div style={{ textAlign: 'center' }}>
-          <button onClick={connectWallet} style={{ padding: '10px 20px', fontSize: '16px' }}>
+          <button onClick={connectWallet} style={{ padding: '10px 20px', fontSize: 16, cursor: 'pointer' }}>
             Connect Wallet
           </button>
         </div>
       ) : (
         <>
-          <p><strong>Wallet:</strong> {wallet}</p>
-          <p><strong>Points:</strong> {points}</p>
-          <p><strong>Subscription status:</strong> {subscribed ? 'Active' : 'Inactive'}</p>
+          <div style={{ marginBottom: 20 }}>
+            <p><strong>Wallet:</strong> {wallet}</p>
+            <p><strong>Points:</strong> {points}</p>
+            <p><strong>Subscription status:</strong> {subscribed ? 'Active' : 'Inactive'}</p>
+          </div>
 
-          <h3>Today's Question: Will it rain today in Budapest?</h3>
+          <div style={{ marginBottom: 20 }}>
+            <h2>Today's Question:</h2>
+            <p>Will it rain today in Budapest?</p>
+            <input
+              type="text"
+              placeholder="Your tip (yes/no)"
+              value={tip}
+              onChange={e => setTip(e.target.value)}
+              style={{ width: '100%', padding: 8, fontSize: 16, marginBottom: 10 }}
+              disabled={!subscribed}
+            />
+            <button
+              onClick={submitTip}
+              style={{ padding: '10px 20px', fontSize: 16, cursor: 'pointer' }}
+              disabled={!subscribed}
+            >
+              Submit Tip
+            </button>
+            {!subscribed && <p style={{ color: 'red', marginTop: 10 }}>You must have an active subscription to submit tips.</p>}
+          </div>
 
-          <input
-            type="text"
-            placeholder="Your tip (yes/no)"
-            value={tip}
-            onChange={e => setTip(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginBottom: '10px', fontSize: '16px' }}
-          />
-          <button
-            onClick={submitTip}
-            disabled={!subscribed}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: subscribed ? 'pointer' : 'not-allowed' }}
-          >
-            Submit Tip
-          </button>
-
-          {!subscribed && (
-            <p style={{ color: 'red', marginTop: '10px' }}>
-              You must have an active subscription to submit tips.
-            </p>
-          )}
-
-          <h3 style={{ marginTop: '40px' }}>Ranking (Top 25)</h3>
-          <ol>
-            {ranking.map(user => (
-              <li key={user.walletAddress}>
-                {user.walletAddress.substring(0, 6)}... - {user.points} points
-              </li>
-            ))}
-          </ol>
+          <div>
+            <h2>Ranking (Top 25)</h2>
+            <ol>
+              {ranking.length === 0 && <li>No ranking data yet.</li>}
+              {ranking.map(user => (
+                <li key={user.walletAddress}>
+                  {user.walletAddress.substring(0, 6)}... - {user.points} points
+                </li>
+              ))}
+            </ol>
+          </div>
         </>
       )}
     </div>
