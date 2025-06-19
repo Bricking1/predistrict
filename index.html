@@ -1,158 +1,147 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Predistrict</title>
-  <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-    header {
-      background: #1e1e2f;
-      color: white;
-      padding: 1rem;
-    }
-    .container {
-      max-width: 600px;
-      margin: 2rem auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    button {
-      padding: 0.5rem 1rem;
-      background: #0057ff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      margin-top: 1rem;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #003fc5;
-    }
-    .points-box, .subscription-box {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: #e8f0fe;
-      border-radius: 8px;
-    }
-    #logo {
-      max-width: 200px;
-      margin-bottom: 1rem;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <img id="logo" src="logo.png" alt="Predistrict Logo" />
-    <h1>Predistrict</h1>
-    <p>Community-based knowledge tips and rewards</p>
-    <button id="connectBtn">Connect Wallet</button>
-    <p id="walletAddress">Not connected</p>
-  </header>
-  <div class="container" id="mainContent" style="display:none;">
-    <div class="subscription-box">
-      <strong>Status:</strong> Subscriber ✅<br />
-      <small>Daily Points: <span id="dailyPoints">100</span></small>
-    </div>
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
 
-    <div class="points-box">
-      <strong>Your Points:</strong> <span id="points">100</span><br />
-      <button id="dailyRewardBtn">Add Daily Points</button>
-    </div>
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-    <div class="question-box">
-      <h3>Today's Question:</h3>
-      <p>Will it rain today in Budapest?</p>
-      <button id="tipYes">Yes</button>
-      <button id="tipNo">No</button>
-    </div>
-  </div>
+mongoose.connect('mongodb+srv://<username>:<password>@cluster0.mongodb.net/predistrict?retryWrites=true&w=majority', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-  <script>
-    let points = 100;
-    let walletAddress = null;
+// --- Schemas ---
 
-    const connectBtn = document.getElementById('connectBtn');
-    const walletAddressP = document.getElementById('walletAddress');
-    const mainContent = document.getElementById('mainContent');
-    const dailyPointsSpan = document.getElementById('dailyPoints');
-    const pointsSpan = document.getElementById('points');
-    const dailyRewardBtn = document.getElementById('dailyRewardBtn');
-    const tipYesBtn = document.getElementById('tipYes');
-    const tipNoBtn = document.getElementById('tipNo');
-
-    async function connectWallet() {
-      if (window.ethereum) {
-        window.web3 = new Web3(window.ethereum);
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          walletAddress = accounts[0];
-          walletAddressP.textContent = `Wallet: ${walletAddress}`;
-          checkSubscription();
-        } catch (err) {
-          alert('Wallet connection failed: ' + err.message);
-        }
-      } else {
-        alert('MetaMask not found. Please install MetaMask.');
-      }
+const userSchema = new mongoose.Schema({
+  walletAddress: { type: String, unique: true, required: true },
+  points: { type: Number, default: 0 },
+  packages: [
+    {
+      type: String, // 'emergency', 'weekly_15', 'weekly_25'
+      validUntil: Date,
     }
+  ],
+  createdAt: { type: Date, default: Date.now },
+});
 
-    async function checkSubscription() {
-      try {
-        const response = await fetch('http://localhost:3001/api/check-subscription', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress })
-        });
-        const data = await response.json();
-        if (data.subscribed) {
-          mainContent.style.display = 'block';
-        } else {
-          alert('Subscription not found or expired. Please send 1 ETH to 0xE8caF548eaD535fc4Bcb0938C43319Fc1d0bac97 to subscribe.');
-          mainContent.style.display = 'none';
-        }
-      } catch (err) {
-        alert('Error checking subscription: ' + err.message);
-        mainContent.style.display = 'none';
-      }
-    }
+const tipSchema = new mongoose.Schema({
+  walletAddress: String,
+  date: Date,
+  tip: String,
+  correct: Boolean,
+  pointsChange: Number,
+});
 
-    function updatePoints() {
-      pointsSpan.textContent = points;
-      dailyPointsSpan.textContent = 100;
-    }
+const User = mongoose.model('User', userSchema);
+const Tip = mongoose.model('Tip', tipSchema);
 
-    function dailyReward() {
-      points += 100;
-      alert('+100 daily points added!');
-      updatePoints();
-    }
+// --- Helpers ---
 
-    function submitTip(isYes) {
-      const correct = Math.random() > 0.5;
-      if (correct) {
-        points += 50;
-        alert('Correct tip! +50 points');
-      } else {
-        points -= 20;
-        alert('Wrong tip! -20 points');
-      }
-      updatePoints();
-    }
+function getPackageDuration(packageType) {
+  const now = new Date();
+  if (packageType === 'emergency') {
+    now.setMonth(now.getMonth() + 1);
+  } else if (packageType === 'weekly_15' || packageType === 'weekly_25') {
+    now.setDate(now.getDate() + 7);
+  }
+  return now;
+}
 
-    connectBtn.addEventListener('click', connectWallet);
-    dailyRewardBtn.addEventListener('click', dailyReward);
-    tipYesBtn.addEventListener('click', () => submitTip(true));
-    tipNoBtn.addEventListener('click', () => submitTip(false));
-  </script>
-</body>
-</html>
+function calculatePointsChange(isCorrect) {
+  return isCorrect ? 50 : -20;
+}
+
+// --- API ---
+
+// Register or update user
+app.post('/api/register', async (req, res) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) return res.status(400).json({ error: 'Wallet address required' });
+
+  let user = await User.findOne({ walletAddress });
+  if (!user) {
+    user = new User({ walletAddress });
+    await user.save();
+  }
+  res.json({ message: 'User registered', user });
+});
+
+// Check subscription status
+app.post('/api/check-subscription', async (req, res) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) return res.status(400).json({ error: 'Wallet address required' });
+
+  const user = await User.findOne({ walletAddress });
+  if (!user) return res.json({ subscribed: false });
+
+  const now = new Date();
+  const hasValidPackage = user.packages.some(pkg => pkg.validUntil > now);
+  res.json({ subscribed: hasValidPackage });
+});
+
+// Buy package (mock payment)
+app.post('/api/buy-package', async (req, res) => {
+  const { walletAddress, packageType } = req.body;
+  if (!walletAddress || !packageType) return res.status(400).json({ error: 'Missing walletAddress or packageType' });
+
+  const user = await User.findOne({ walletAddress });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const validUntil = getPackageDuration(packageType);
+  user.packages.push({ type: packageType, validUntil });
+  await user.save();
+
+  res.json({ message: 'Package purchased', validUntil });
+});
+
+// Submit tip
+app.post('/api/submit-tip', async (req, res) => {
+  const { walletAddress, tip } = req.body;
+  if (!walletAddress || !tip) return res.status(400).json({ error: 'Missing walletAddress or tip' });
+
+  const user = await User.findOne({ walletAddress });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Simulate tip correctness (replace with real logic)
+  const correct = Math.random() > 0.5;
+  const pointsChange = calculatePointsChange(correct);
+
+  user.points = Math.max(0, user.points + pointsChange);
+  await user.save();
+
+  const newTip = new Tip({
+    walletAddress,
+    date: new Date(),
+    tip,
+    correct,
+    pointsChange,
+  });
+  await newTip.save();
+
+  res.json({ message: correct ? 'Correct tip! +50 points' : 'Wrong tip! -20 points', points: user.points });
+});
+
+// Get ranking (top 25, min 10 players)
+app.get('/api/ranking', async (req, res) => {
+  const count = await User.countDocuments();
+  if (count < 10) return res.json({ message: 'Not enough players for ranking', ranking: [] });
+
+  const users = await User.find().sort({ points: -1 }).limit(25);
+  const ranking = users.map(u => ({ walletAddress: u.walletAddress, points: u.points }));
+  res.json({ ranking });
+});
+
+// Get user points (optional)
+app.get('/api/user-points', async (req, res) => {
+  const { walletAddress } = req.query;
+  if (!walletAddress) return res.status(400).json({ error: 'walletAddress required' });
+
+  const user = await User.findOne({ walletAddress });
+  if (!user) return res.json({ points: 0 });
+  res.json({ points: user.points });
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`Predistrict backend running on port ${PORT}`));
